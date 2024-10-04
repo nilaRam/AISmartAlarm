@@ -1,0 +1,101 @@
+#include <ctime>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <WiFi.h>
+#include <string.h>
+const char *ssid = ":pirate_flag:";
+const char *password = "bettertobeapiratethanjointhenavy";
+const char *alarm = "11:59 PM";
+bool isAlarming = false;
+char formatted_star[11];
+void getTime() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    String url = "http://worldtimeapi.org/api/ip";
+    
+    http.begin(url);
+    int httpCode = http.GET();
+  if (httpCode == HTTP_CODE_OK) {
+      String payload = http.getString();
+      DynamicJsonDocument jsonDoc(1024);
+      DeserializationError error = deserializeJson(jsonDoc, payload);
+      if (!error) {
+          String datetime = jsonDoc["datetime"];
+          // Extract year, month, day, hour, minute, second from the datetime string
+          int year, month, day, hour, minute, second;
+          sscanf(datetime.c_str(), "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &minute, &second);
+          // Construct a time_t value
+          struct tm tm_struct = {0};
+          tm_struct.tm_year = year - 1900;
+          tm_struct.tm_mon = month - 1;
+          tm_struct.tm_mday = day;
+          tm_struct.tm_hour = hour;
+          tm_struct.tm_min = minute;
+          tm_struct.tm_sec = second;
+          time_t time = mktime(&tm_struct);
+          // Convert time_t to the desired format "10:08 PM"
+          struct tm *time_info = localtime(&time);
+          strftime(formatted_star, sizeof(formatted_star), "%I:%M %p", time_info);
+          displayTime();
+      } else {
+          Serial.println("JSON parsing error");
+      }
+  }
+  else {
+        Serial.println("HTTP GET request failed");
+      }
+      
+      http.end();
+    }
+    
+    delay(1000); // Fetch and print time every second
+}
+void displayTime() {
+  if(isAlarming) {
+    char *formatted = (char *) malloc(strlen(formatted_star) + strlen(" ALARM") + 1);
+    snprintf(formatted, strlen(formatted_star) + strlen(alarm) + 1, "%s ALARM", formatted_star);
+    Serial.println(formatted);
+    free(formatted);
+  } else {
+    Serial.println(formatted_star);
+  }
+}
+void makeBlink() {
+    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+    delay(100);                        // wait for a second
+    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    delay(100);                        // wait for a second
+}
+void startAlarm() {
+  Serial.println("Time to wake up.");
+  isAlarming = true;
+}
+void stopAlarm() {
+  // arduino::String x = Serial.readString(); //read 8-bit ASCII code of character from the 16-bit item of buffer
+  // Serial.println((arduino::String)x); //show the character on Serial Monitor
+  isAlarming = false;  
+}
+void loop() {
+  getTime();
+  if (isAlarming) {
+    makeBlink();
+  }
+  if(!strcmp(formatted_star, alarm) && !isAlarming) {
+    Serial.println("Start Alarm");
+    startAlarm();
+  }
+  if (Serial.available() > 0) //at least one data item is in the buffer/array
+  {
+    stopAlarm();
+  }
+  
+}
+void setup() {
+  Serial.begin(9600);
+  pinMode(LED_BUILTIN, OUTPUT);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+}
