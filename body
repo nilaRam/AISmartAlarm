@@ -1,0 +1,49 @@
+#include <ctime>
+time_t seconds;
+int alarm = 5;
+void setup() {
+  
+  Serial.begin();
+    pinMode(LED_BUILTIN, OUTPUT);
+}
+bool isAlarming = false;
+void getTime() {
+    seconds = time(NULL);
+    if (isAlarming) {
+      Serial.println("Alarming");
+    }
+    Serial.println(seconds);
+    delay(1000);
+}
+void makeBlink() {
+    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+    delay(100);                        // wait for a second
+    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    delay(100);                        // wait for a second
+}
+void startAlarm() {
+  Serial.println("Time to wake up.");
+  isAlarming = true;
+}
+void stopAlarm() {
+  arduino::String x = Serial.readString(); //read 8-bit ASCII code of character from the 16-bit item of buffer
+  Serial.println((arduino::String)x); //show the character on Serial Monitor
+  isAlarming = false;  
+}
+void loop() {
+  getTime();
+  if (isAlarming) {
+    makeBlink();
+  }
+  if(seconds == alarm) {
+    startAlarm();
+  }
+  if (Serial.available() > 0) //at least one data item is in the buffer/array
+  {
+    stopAlarm();
+  }
+}
+
+
+
+
